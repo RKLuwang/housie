@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Housie ticket booking status checker">
+  <title>Housie Ticket Status Checker</title>
+  <style>
+    :root { --bg:#f4f7fb; --card:#fff; --ink:#172033; --muted:#65718a; --accent:#4f46e5; --line:#e3e8f1; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+    header { background:linear-gradient(130deg,#312e81,#4f46e5 60%,#7c3aed); color:white; padding:34px 18px 42px; }
+    .wrap { max-width:1050px; margin:auto; }
+    .eyebrow { text-transform:uppercase; letter-spacing:.14em; font-size:.75rem; opacity:.85; font-weight:700; }
+    h1 { margin:8px 0; font-size:clamp(1.8rem,4vw,2.6rem); }
+    header p { margin:0; opacity:.9; }
+    main { max-width:1050px; margin:-22px auto 50px; padding:0 16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 10px 28px #1720330b; margin-bottom:18px; }
+    h2 { font-size:1.15rem; margin:0 0 16px; }
+    .search-row { display:flex; gap:10px; }
+    input,select,button { font:inherit; border-radius:10px; padding:12px 13px; }
+    input,select { width:100%; border:1px solid #cfd7e5; background:white; color:var(--ink); }
+    button { border:0; background:var(--accent); color:white; font-weight:700; cursor:pointer; }
+    button.secondary { background:#eef0ff; color:#3730a3; }
+    button.danger { background:#fee2e2; color:#991b1b; }
+    button:hover { filter:brightness(.97); }
+    .search-row input { flex:1; min-width:0; }
+    .result { margin-top:16px; padding:16px; border-radius:12px; background:#f8fafc; border:1px solid var(--line); }
+    .empty { color:var(--muted); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+    label { display:block; font-size:.84rem; font-weight:700; color:#475569; margin-bottom:6px; }
+    .field { min-width:0; }
+    .full { grid-column:1/-1; }
+    .actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:15px; }
+    .table-wrap { overflow-x:auto; }
+    table { border-collapse:collapse; width:100%; min-width:720px; }
+    th,td { padding:12px 10px; border-bottom:1px solid var(--line); text-align:left; font-size:.9rem; }
+    th { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+    .pill { display:inline-block; padding:5px 9px; border-radius:999px; font-size:.78rem; font-weight:800; }
+    .Booked { background:#dbeafe; color:#1d4ed8; }
+    .Unbook { background:#f1f5f9; color:#475569; }
+    .Paid { background:#dcfce7; color:#166534; }
+    .notice { color:var(--muted); font-size:.88rem; line-height:1.5; }
+    .stats { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 18px; }
+    .stat { flex:1; min-width:120px; background:#fff; border:1px solid var(--line); padding:13px 15px; border-radius:13px; }
+    .stat strong { display:block; font-size:1.4rem; }
+    .stat span { color:var(--muted); font-size:.82rem; }
+    .hidden { display:none !important; }
+    footer { text-align:center; color:var(--muted); padding:0 18px 30px; font-size:.82rem; }
+    @media(max-width:620px) { .grid { grid-template-columns:1fr; } .search-row { flex-direction:column; } .card { padding:17px; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Event ticket management</div>
+    <h1>Housie Ticket Status</h1>
+    <p>Check a ticket number and view its booking status.</p>
+  </div>
+</header>
+<main>
+  <section class="card">
+    <h2>Check a ticket</h2>
+    <div class="search-row">
+      <input id="searchTicket" type="search" placeholder="Enter ticket number (e.g. H-001)" aria-label="Ticket number">
+      <button id="searchBtn">Check status</button>
+    </div>
+    <div id="searchResult" class="result empty" aria-live="polite">Enter a ticket number to check its status.</div>
+  </section>
+
+  <section class="stats" aria-label="Ticket summary">
+    <div class="stat"><strong id="totalCount">0</strong><span>Total tickets</span></div>
+    <div class="stat"><strong id="bookedCount">0</strong><span>Booked</span></div>
+    <div class="stat"><strong id="paidCount">0</strong><span>Paid</span></div>
+    <div class="stat"><strong id="unbookCount">0</strong><span>Unbooked</span></div>
+  </section>
+
+  <section class="card">
+    <h2>Manage tickets</h2>
+    <p class="notice">Add or update ticket records below. This starter version saves records in this browser only. It does not automatically share records with other phones or computers.</p>
+    <form id="ticketForm">
+      <div class="grid">
+        <div class="field">
+          <label for="ticketNo">Ticket number *</label>
+          <input id="ticketNo" required placeholder="e.g. H-001">
+        </div>
+        <div class="field">
+          <label for="status">Ticket status *</label>
+          <select id="status" required>
+            <option value="Unbook">Unbook</option>
+            <option value="Booked">Booked</option>
+            <option value="Paid">Paid</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="holderType">Booked by</label>
+          <select id="holderType">
+            <option value="Individual">Individual</option>
+            <option value="Organisation">Organisation</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="holderName">Individual / organisation name</label>
+          <input id="holderName" placeholder="Name of ticket holder">
+        </div>
+        <div class="field">
+          <label for="mobile">Mobile number</label>
+          <input id="mobile" type="tel" inputmode="tel" placeholder="Contact number">
+        </div>
+        <div class="field">
+          <label for="notes">Notes (optional)</label>
+          <input id="notes" placeholder="Payment reference or other notes">
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" id="saveBtn">Save ticket</button>
+        <button type="button" class="secondary" id="resetBtn">Clear form</button>
+        <button type="button" class="secondary" id="exportBtn">Export CSV backup</button>
+        <label style="display:flex;align-items:center;gap:8px;margin:0;padding:8px 0"><input id="importFile" type="file" accept=".json,application/json" style="max-width:220px;padding:0"> Import JSON backup</label>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Ticket register</h2>
+    <div class="search-row" style="margin-bottom:14px">
+      <input id="filterTickets" type="search" placeholder="Filter by ticket, name, organisation, or mobile">
+      <select id="filterStatus" style="max-width:190px" aria-label="Filter by status">
+        <option value="All">All statuses</option><option>Booked</option><option>Paid</option><option>Unbook</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Ticket</th><th>Status</th><th>Booked by</th><th>Name</th><th>Mobile</th><th>Actions</th></tr></thead>
+        <tbody id="ticketRows"></tbody>
+      </table>
+    </div>
+    <p id="noRows" class="notice">No tickets have been added yet.</p>
+  </section>
+  <p class="notice">Privacy note: mobile numbers are personal information. Do not publish this page with real contact details unless access is restricted and the ticket holders have agreed. GitHub Pages is a public static host by default.</p>
+</main>
+<footer>Housie Ticket Status Checker · Starter website</footer>
+<script>
+(() => {
+  const STORAGE_KEY = 'housie-ticket-records-v1';
+  const $ = id => document.getElementById(id);
+  let tickets = [];
+  let editingId = null;
+
+  try { tickets = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); if (!Array.isArray(tickets)) tickets = []; }
+  catch { tickets = []; }
+
+  const clean = value => String(value ?? '').trim();
+  const saveStorage = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
+  const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const statusPill = status => `<span class="pill ${escapeHTML(status)}">${escapeHTML(status)}</span>`;
+
+  function renderStats() {
+    $('totalCount').textContent = tickets.length;
+    $('bookedCount').textContent = tickets.filter(t => t.status === 'Booked').length;
+    $('paidCount').textContent = tickets.filter(t => t.status === 'Paid').length;
+    $('unbookCount').textContent = tickets.filter(t => t.status === 'Unbook').length;
+  }
+
+  function renderRows() {
+    const q = clean($('filterTickets').value).toLowerCase();
+    const status = $('filterStatus').value;
+    const shown = tickets.filter(t => (status === 'All' || t.status === status) &&
+      [t.ticketNo,t.holderType,t.holderName,t.mobile,t.notes].some(v => clean(v).toLowerCase().includes(q)));
+    $('ticketRows').innerHTML = shown.map(t => `<tr>
+      <td><strong>${escapeHTML(t.ticketNo)}</strong></td>
+      <td>${statusPill(t.status)}</td>
+      <td>${escapeHTML(t.holderType || '—')}</td>
+      <td>${escapeHTML(t.holderName || '—')}</td>
+      <td>${escapeHTML(t.mobile || '—')}</td>
+      <td><button type="button" class="secondary" data-edit="${escapeHTML(t.id)}">Edit</button> <button type="button" class="danger" data-delete="${escapeHTML(t.id)}">Delete</button></td>
+    </tr>`).join('');
+    $('noRows').classList.toggle('hidden', shown.length > 0);
+    renderStats();
+  }
+
+  function renderSearch() {
+    const number = clean($('searchTicket').value).toLowerCase();
+    if (!number) { $('searchResult').className = 'result empty'; $('searchResult').textContent = 'Enter a ticket number to check its status.'; return; }
+    const t = tickets.find(item => clean(item.ticketNo).toLowerCase() === number);
+    if (!t) { $('searchResult').className = 'result'; $('searchResult').innerHTML = `<strong>Ticket not found</strong><p>No record matches ticket number “${escapeHTML($('searchTicket').value)}”. Please check the number or contact the organiser.</p>`; return; }
+    const booked = t.status !== 'Unbook';
+    $('searchResult').className = 'result';
+    $('searchResult').innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><strong>Ticket ${escapeHTML(t.ticketNo)}</strong>${statusPill(t.status)}</div>
+      <p><strong>Booking type:</strong> ${escapeHTML(t.holderType || '—')}</p>
+      <p><strong>${t.holderType === 'Organisation' ? 'Organisation name' : 'Ticket holder name'}:</strong> ${escapeHTML(booked ? (t.holderName || 'Not provided') : '—')}</p>
+      <p><strong>Mobile:</strong> ${escapeHTML(booked ? (t.mobile || 'Not provided') : '—')}</p>
+      ${t.notes && booked ? `<p><strong>Notes:</strong> ${escapeHTML(t.notes)}</p>` : ''}
+      ${t.status === 'Paid' ? '<p><strong>Payment:</strong> Marked as paid.</p>' : t.status === 'Booked' ? '<p><strong>Payment:</strong> Not marked as paid.</p>' : '<p>This ticket is currently available / unbooked.</p>'}`;
+  }
+
+  function clearForm() {
+    editingId = null; $('ticketForm').reset(); $('status').value = 'Unbook'; $('saveBtn').textContent = 'Save ticket';
+  }
+
+  $('ticketForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const ticketNo = clean($('ticketNo').value);
+    const record = { id: editingId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), ticketNo,
+      status: $('status').value, holderType: $('holderType').value, holderName: clean($('holderName').value),
+      mobile: clean($('mobile').value), notes: clean($('notes').value) };
+    const duplicate = tickets.find(t => clean(t.ticketNo).toLowerCase() === ticketNo.toLowerCase() && t.id !== editingId);
+    if (duplicate) { alert('That ticket number already exists. Please edit the existing ticket instead.'); return; }
+    if (record.status === 'Unbook') { record.holderName = ''; record.mobile = ''; }
+    if (editingId) tickets = tickets.map(t => t.id === editingId ? record : t);
+    else tickets.push(record);
+    try { saveStorage(); } catch { alert('Could not save. Browser storage may be unavailable or full.'); return; }
+    clearForm(); renderRows(); renderSearch();
+  });
+
+  $('ticketRows').addEventListener('click', event => {
+    const editId = event.target.dataset.edit, deleteId = event.target.dataset.delete;
+    if (editId) {
+      const t = tickets.find(item => item.id === editId); if (!t) return;
+      editingId = t.id; $('ticketNo').value = t.ticketNo; $('status').value = t.status;
+      $('holderType').value = t.holderType || 'Individual'; $('holderName').value = t.holderName || '';
+      $('mobile').value = t.mobile || ''; $('notes').value = t.notes || '';
+      $('saveBtn').textContent = 'Update ticket'; $('ticketNo').focus(); window.scrollTo({top:0,behavior:'smooth'});
+    }
+    if (deleteId && confirm('Delete this ticket record? This cannot be undone unless you have a backup.')) {
+      tickets = tickets.filter(t => t.id !== deleteId); saveStorage(); renderRows(); renderSearch();
+    }
+  });
+
+  $('searchBtn').addEventListener('click', renderSearch);
+  $('searchTicket').addEventListener('keydown', e => { if (e.key === 'Enter') renderSearch(); });
+  $('resetBtn').addEventListener('click', clearForm);
+  $('filterTickets').addEventListener('input', renderRows);
+  $('filterStatus').addEventListener('change', renderRows);
+
+  $('exportBtn').addEventListener('click', () => {
+    const csvCell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const rows = [['Ticket number','Status','Booked by','Name','Mobile','Notes'], ...tickets.map(t => [t.ticketNo,t.status,t.holderType,t.holderName,t.mobile,t.notes])];
+    const csv = '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+    const a = document.createElement('a'); a.href = url; a.download = 'housie-tickets.csv'; a.click(); URL.revokeObjectURL(url);
+    const jsonUrl = URL.createObjectURL(new Blob([JSON.stringify(tickets,null,2)], {type:'application/json'}));
+    const b = document.createElement('a'); b.href = jsonUrl; b.download = 'housie-tickets-backup.json'; b.click(); URL.revokeObjectURL(jsonUrl);
+  });
+
+  $('importFile').addEventListener('change', async event => {
+    const file = event.target.files[0]; if (!file) return;
+    try {
+      const imported = JSON.parse(await file.text());
+      if (!Array.isArray(imported) || imported.some(t => !t.ticketNo || !['Booked','Unbook','Paid'].includes(t.status))) throw new Error('Invalid file format');
+      if (!confirm(`Import ${imported.length} records? This replaces the records currently in this browser.`)) return;
+      tickets = imported.map(t => ({id: clean(t.id) || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random())), ticketNo:clean(t.ticketNo), status:t.status, holderType:clean(t.holderType)||'Individual', holderName:clean(t.holderName), mobile:clean(t.mobile), notes:clean(t.notes)}));
+      saveStorage(); clearForm(); renderRows(); renderSearch(); alert('Backup imported successfully.');
+    } catch { alert('Could not import this file. Please choose a valid JSON backup exported by this website.'); }
+    finally { event.target.value = ''; }
+  });
+
+  renderRows();
+})();
+</script>
+</body>
+</html>
